@@ -1,0 +1,29 @@
+# Directories and files to exclude from linting
+exclude = [
+    ".git",
+    ".idea",
+    ".vscode",
+    "__pycache__",
+    "build",
+    "dist",
+    ".venv"
+]
+
+# Maximum line length (use 88 to stay Black-compatible)
+line-length = 88
+
+[lint]
+
+# Rule sets to enable
+select = [
+    "F", # Pyflakes
+    "E", # Pycodestyle errors
+    "W", # Pycodestyle warnings
+    "I", # Import sorting (isort)
+    "B", # Bugbear
+    "UP", # Pyupgrade
+    "N", # PEP8 naming conventions
+]
+
+[format]
+quote-style = 'single'
