@@ -10,7 +10,7 @@ from typing import Any
 import yaml
 from jinja2 import Environment, FileSystemLoader
 
-from .data import TempPath
+from .path import TempPath
 
 PLUGIN_FOLDER = 'plugins'
 TEMP_FOLDER = 'src'
@@ -19,16 +19,13 @@ TEMP_FOLDER = 'src'
 class Scaffold:
     """A class to scaffold LaTeX documents using Jinja2 templates."""
 
-    def __init__(self, template_dir: str, project_dir: str) -> None:
+    def __init__(self, template_dir: Path, project_dir: Path) -> None:
         """Initialize the Scaffold with the directory containing templates.
 
         Args:
             template_dir (str): The directory where LaTeX templates are stored.
             project_dir (str): The directory where the project will be created.
         """
-
-        template_root = Path(template_dir)
-        project_root = Path(project_dir)
 
         # initialize Jinja2 environment with custom delimiters for LaTeX
         self.env = Environment(
@@ -43,8 +40,8 @@ class Scaffold:
         )
 
         # read configuration file
-        json_file = template_root / 'texjam.json'
-        yaml_file = template_root / 'texjam.yaml'
+        json_file = template_dir / 'texjam.json'
+        yaml_file = template_dir / 'texjam.yaml'
 
         if json_file.exists():
             with json_file.open(encoding='utf-8') as f:
@@ -59,10 +56,18 @@ class Scaffold:
             raise ValueError(
                 'Configuration file must contain a dictionary at the top level.'
             )
+        for key, value in metadata.items():
+            if not isinstance(key, str):
+                raise ValueError('All keys in the configuration must be strings.')
+            if not isinstance(value, (str, int, float, bool, type(None))):
+                raise ValueError(
+                    'All values in the configuration must be of type '
+                    'str, int, float, bool, or None.'
+                )
 
         self.config = ScaffoldConfig(
-            template_root=template_root / TEMP_FOLDER,
-            project_root=project_root,
+            template_root=template_dir / TEMP_FOLDER,
+            project_root=project_dir,
             metadata=metadata,
         )
 
@@ -123,7 +128,15 @@ class Scaffold:
 
             target_path = self.config.project_root / temp_path.rendered
             if temp_path.is_dir:
-                target_path.mkdir(parents=True, exist_ok=False)
+                if target_path.exists():
+                    if len(temp_path.rendered.parts) == 1:
+                        raise FileExistsError(
+                            f'Project directory {target_path} already exists.'
+                        )
+                    else:
+                        raise FileExistsError(f'Directory {target_path} already exists.')
+                else:
+                    target_path.mkdir(parents=True, exist_ok=False)
             else:
                 if not target_path.parent.exists():
                     raise FileNotFoundError(
@@ -192,7 +205,7 @@ class ScaffoldPlugin:
         pass
 
     def pre_create(self, path: TempPath):
-        """Hook to modify the content of a TempPath before it is created.
+        """Hook to modify a TempPath before it is created.
 
         Args:
             path (TempPath): The TempPath object to be processed.
