@@ -15,6 +15,7 @@ from .source import parse_source
 
 
 @click.group('texjam')
+@click.version_option(None, '--version', '-v')
 def cli() -> None:
     pass
 
@@ -88,3 +89,7 @@ def new(output: Path, package: str) -> None:
     scaffold.config.metadata.update(user_input)
 
     scaffold.render()
+
+
+if __name__ == '__main__':
+    cli()
