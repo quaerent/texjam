@@ -82,11 +82,10 @@ def new(output: Path, package: str) -> None:
 
     scaffold = Scaffold(template_dir=template_dir, project_dir=output)
 
-    user_input = {}
-    for key, value in scaffold.config.metadata.items():
-        ty = type(value) if value is not None else str
-        user_input[key] = click.prompt(key, default=value, type=ty)
-    scaffold.config.metadata.update(user_input)
+    metadata = {}
+    for key, meta_field in scaffold.config.metafields.items():
+        metadata[key] = meta_field.prompt()
+    scaffold.config.metadata = metadata
 
     scaffold.render()
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import keyword
 import sys
 from dataclasses import dataclass
 from importlib.util import module_from_spec, spec_from_file_location
@@ -14,6 +15,142 @@ from .path import TempPath
 
 PLUGIN_FOLDER = 'plugins'
 TEMP_FOLDER = 'src'
+
+
+@dataclass(kw_only=True)
+class MetaField:
+    """Dataclass to hold metadata items for scaffolding."""
+
+    key: str
+    prompt_str: str
+    default: Any | None = None
+    type: type
+    choices: list[Any] | None = None
+    required: bool = True
+
+    @classmethod
+    def from_item(cls, key: str, obj: Any) -> MetaField:
+        """Create a MetaField from an item.
+
+        Args:
+            obj (Any): The dictionary item representing a meta field.
+        """
+
+        if not key.isidentifier() or keyword.iskeyword(key):
+            raise ValueError(f'Invalid metadata key: {key}')
+
+        meta_field = cls(
+            key=key,
+            prompt_str=key.replace('_', ' ').capitalize(),
+            type=str,
+        )
+
+        if isinstance(obj, dict):
+            prompt = obj.get('prompt')
+            default = obj.get('default')
+            type_str = obj.get('type')
+            choices = obj.get('choices')
+            required = obj.get('required')
+
+            if prompt is not None:
+                assert isinstance(prompt, str)
+                meta_field.prompt_str = prompt
+
+            if default is not None:
+                assert isinstance(default, (str, int, float, bool))
+                meta_field.default = default
+
+            if type_str is not None:
+                assert isinstance(type_str, str)
+                supported_types: dict[str, type] = {
+                    'str': str,
+                    'int': int,
+                    'float': float,
+                    'bool': bool,
+                }
+                if type_str not in supported_types:
+                    raise ValueError(f'Unsupported type: {type_str}')
+                meta_field.type = supported_types[type_str]
+
+            if choices is not None:
+                assert isinstance(choices, list)
+                assert len(choices) > 0
+                meta_field.choices = choices
+
+            if required is not None:
+                assert isinstance(required, bool)
+                meta_field.required = required
+
+            # check consistency and infer type
+            if meta_field.type is None:
+                if meta_field.default is not None:
+                    meta_field.type = type(meta_field.default)
+                elif meta_field.choices is not None:
+                    meta_field.type = type(meta_field.choices[0])
+                else:
+                    meta_field.type = str
+
+            if meta_field.default is not None:
+                assert isinstance(meta_field.default, meta_field.type)
+
+            if meta_field.choices is not None:
+                assert meta_field.type is not bool
+                for choice in meta_field.choices:
+                    assert isinstance(choice, meta_field.type)
+
+        else:
+            assert isinstance(obj, (str, int, float, bool))
+            meta_field.default = obj
+            meta_field.type = type(obj)
+            meta_field.required = False
+
+        return meta_field
+
+    def prompt(self) -> Any:
+        """Prompt the user for input based on the MetaField configuration."""
+        while True:
+            prompt_str = f'{self.prompt_str}'
+            if self.type is bool:
+                if self.default is not None:
+                    prompt_str += ' (Y/n)' if self.default else ' (y/N)'
+                else:
+                    prompt_str += ' (y/n)'
+            else:
+                if self.choices is not None:
+                    prompt_str += f' ({str.join(", ", map(repr, self.choices))})'
+                if self.default is not None:
+                    prompt_str += f' [default: {self.default}]'
+            prompt_str += ': '
+
+            user_input = input(prompt_str).strip()
+            if user_input == '':
+                if self.required:
+                    print('This field is required.')
+                    continue
+                input_value = self.default
+            else:
+                try:
+                    if self.type is bool:
+                        if user_input.lower() in ('yes', 'y', 'true', 't', '1'):
+                            input_value = True
+                        elif user_input.lower() in ('no', 'n', 'false', 'f', '0'):
+                            input_value = False
+                        else:
+                            raise ValueError('Invalid boolean value.')
+                    else:
+                        input_value = self.type(user_input)
+                except ValueError:
+                    print(f'Invalid input. Expected type: {self.type.__name__}.')
+                    continue
+
+            if self.choices is not None and input_value not in self.choices:
+                print(
+                    'Input must be one of the following choices: '
+                    f'{str.join(", ", map(repr, self.choices))}.'
+                )
+                continue
+
+            return input_value
 
 
 class Scaffold:
@@ -45,30 +182,26 @@ class Scaffold:
 
         if json_file.exists():
             with json_file.open(encoding='utf-8') as f:
-                metadata = json.load(f)
+                data = json.load(f)
         elif yaml_file.exists():
             with yaml_file.open(encoding='utf-8') as f:
-                metadata = yaml.safe_load(f)
+                data = yaml.safe_load(f)
         else:
-            metadata = {}
+            data = {}
 
-        if not isinstance(metadata, dict):
+        if not isinstance(data, dict):
             raise ValueError(
                 'Configuration file must contain a dictionary at the top level.'
             )
-        for key, value in metadata.items():
-            if not isinstance(key, str):
-                raise ValueError('All keys in the configuration must be strings.')
-            if not isinstance(value, (str, int, float, bool, type(None))):
-                raise ValueError(
-                    'All values in the configuration must be of type '
-                    'str, int, float, bool, or None.'
-                )
+        metafields = {}
+        for key, value in data.items():
+            metafields[key] = MetaField.from_item(key, value)
 
         self.config = ScaffoldConfig(
             template_root=template_dir / TEMP_FOLDER,
             project_root=project_dir,
-            metadata=metadata,
+            metafields=metafields,
+            metadata={},
         )
 
     def _load_py_plugins(self) -> list[ScaffoldPlugin]:
@@ -107,12 +240,13 @@ class Scaffold:
         for path in self.config.template_root.rglob('*'):
             if path.is_file() or path.is_dir():
                 relative_path = path.relative_to(self.config.template_root)
-                rendered_path = Path(
-                    *(
-                        self.env.from_string(part).render(**self.config.metadata)
-                        for part in relative_path.parts
-                    )
-                )
+                parts = [
+                    self.env.from_string(part).render(**self.config.metafields)
+                    for part in relative_path.parts
+                ]
+                if any(part == '' for part in parts):
+                    continue  # skip paths with empty parts
+                rendered_path = Path(*parts)
                 temp_path = TempPath(raw=path, rendered=rendered_path)
                 temp_paths.append(temp_path)
 
@@ -147,7 +281,7 @@ class Scaffold:
                 content = temp_path.content
                 if isinstance(content, str):
                     template = self.env.from_string(content)
-                    rendered_content = template.render(**self.config.metadata)
+                    rendered_content = template.render(**self.config.metafields)
                     for plugin in plugins:
                         modified_content = plugin.on_render(temp_path, rendered_content)
                         if modified_content is not None:
@@ -173,6 +307,7 @@ class ScaffoldConfig:
 
     template_root: Path
     project_root: Path
+    metafields: dict[str, MetaField]
     metadata: dict[str, Any]
 
 
