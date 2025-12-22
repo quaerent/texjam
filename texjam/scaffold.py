@@ -222,7 +222,13 @@ class Scaffold:
                 sys.modules[module_name] = module
                 spec.loader.exec_module(module)
 
-        return [plugin(config=self.config) for plugin in ScaffoldPlugin.plugins]
+        return [
+            plugin(
+                config=self.config,
+                env=self.env,
+            )
+            for plugin in ScaffoldPlugin.plugins
+        ]
 
     def render(self) -> None:
         """Render the templates and create the project structure."""
@@ -320,8 +326,9 @@ class ScaffoldPlugin:
         cls.plugins.append(cls)
         return super().__init_subclass__()
 
-    def __init__(self, config: ScaffoldConfig) -> None:
+    def __init__(self, *, config: ScaffoldConfig, env: Environment) -> None:
         self.config = config
+        self.env = env
 
     def initialize(self) -> None:
         """Hook called during Scaffold initialization."""
