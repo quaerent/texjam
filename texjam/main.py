@@ -84,7 +84,7 @@ def new(output: Path, package: str) -> None:
 
     metadata = {}
     for key, meta_field in scaffold.config.metafields.items():
-        metadata[key] = meta_field.prompt()
+        metadata[key] = meta_field.prompt(scaffold.env, metadata)
     scaffold.config.metadata = metadata
 
     scaffold.render()

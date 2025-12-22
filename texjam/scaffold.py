@@ -23,8 +23,8 @@ class MetaField:
 
     key: str
     prompt_str: str
-    default: Any | None = None
     type: type
+    default: Any | None = None
     choices: list[Any] | None = None
     required: bool = True
 
@@ -47,8 +47,8 @@ class MetaField:
 
         if isinstance(obj, dict):
             prompt = obj.get('prompt')
-            default = obj.get('default')
             type_str = obj.get('type')
+            default = obj.get('default')
             choices = obj.get('choices')
             required = obj.get('required')
 
@@ -56,47 +56,38 @@ class MetaField:
                 assert isinstance(prompt, str)
                 meta_field.prompt_str = prompt
 
-            if default is not None:
-                assert isinstance(default, (str, int, float, bool))
-                meta_field.default = default
+            assert type_str is not None
+            assert isinstance(type_str, str)
+            supported_types: dict[str, type] = {
+                'str': str,
+                'int': int,
+                'float': float,
+                'bool': bool,
+            }
+            assert type_str in supported_types
+            meta_field.type = supported_types[type_str]
 
-            if type_str is not None:
-                assert isinstance(type_str, str)
-                supported_types: dict[str, type] = {
-                    'str': str,
-                    'int': int,
-                    'float': float,
-                    'bool': bool,
-                }
-                if type_str not in supported_types:
-                    raise ValueError(f'Unsupported type: {type_str}')
-                meta_field.type = supported_types[type_str]
+            if default is not None:
+                assert isinstance(default, (str, meta_field.type))
+                meta_field.default = default
+                meta_field.required = False
 
             if choices is not None:
                 assert isinstance(choices, list)
                 assert len(choices) > 0
+                assert meta_field.type is not bool
+                for choice in choices:
+                    assert isinstance(choice, (str, meta_field.type))
                 meta_field.choices = choices
 
             if required is not None:
                 assert isinstance(required, bool)
+                if required:
+                    assert default is None
                 meta_field.required = required
 
-            # check consistency and infer type
-            if meta_field.type is None:
-                if meta_field.default is not None:
-                    meta_field.type = type(meta_field.default)
-                elif meta_field.choices is not None:
-                    meta_field.type = type(meta_field.choices[0])
-                else:
-                    meta_field.type = str
-
-            if meta_field.default is not None:
-                assert isinstance(meta_field.default, meta_field.type)
-
-            if meta_field.choices is not None:
-                assert meta_field.type is not bool
-                for choice in meta_field.choices:
-                    assert isinstance(choice, meta_field.type)
+        elif obj is None:
+            pass
 
         else:
             assert isinstance(obj, (str, int, float, bool))
@@ -106,28 +97,55 @@ class MetaField:
 
         return meta_field
 
-    def prompt(self) -> Any:
+    def prompt(self, env: Environment, metadata: dict[str, Any]) -> Any:
         """Prompt the user for input based on the MetaField configuration."""
+
+        # render default
+        default = None
+        if self.default is not None:
+            if isinstance(self.default, str):
+                template = env.from_string(self.default)
+                default = template.render(metadata)
+                default = self.type(default)
+            else:
+                default = self.default
+
+        # render choices
+        choices = None
+        if self.choices is not None:
+            choices = []
+            for choice in self.choices:
+                if isinstance(choice, str):
+                    template = env.from_string(choice)
+                    rendered_choice = template.render(metadata)
+                    rendered_choice = self.type(rendered_choice)
+                    choices.append(rendered_choice)
+                else:
+                    choices.append(choice)
+
         while True:
+            # build prompt string
             prompt_str = f'{self.prompt_str}'
+
             if self.type is bool:
-                if self.default is not None:
-                    prompt_str += ' (Y/n)' if self.default else ' (y/N)'
+                if default is not None:
+                    prompt_str += ' (Y/n)' if default else ' (y/N)'
                 else:
                     prompt_str += ' (y/n)'
             else:
-                if self.choices is not None:
-                    prompt_str += f' ({str.join(", ", map(repr, self.choices))})'
-                if self.default is not None:
-                    prompt_str += f' [default: {self.default}]'
+                if choices is not None:
+                    prompt_str += f' ({str.join(", ", map(repr, choices))})'
+                if default is not None:
+                    prompt_str += f' [{default}]'
             prompt_str += ': '
 
+            # process input
             user_input = input(prompt_str).strip()
             if user_input == '':
                 if self.required:
                     print('This field is required.')
                     continue
-                input_value = self.default
+                input_value = default
             else:
                 try:
                     if self.type is bool:
@@ -143,11 +161,9 @@ class MetaField:
                     print(f'Invalid input. Expected type: {self.type.__name__}.')
                     continue
 
-            if self.choices is not None and input_value not in self.choices:
-                print(
-                    'Input must be one of the following choices: '
-                    f'{str.join(", ", map(repr, self.choices))}.'
-                )
+            # validate choices
+            if choices is not None and input_value not in choices:
+                print('Input not in allowed choices.')
                 continue
 
             return input_value
@@ -223,11 +239,7 @@ class Scaffold:
                 spec.loader.exec_module(module)
 
         return [
-            plugin(
-                config=self.config,
-                env=self.env,
-            )
-            for plugin in ScaffoldPlugin.plugins
+            plugin(config=self.config, env=self.env) for plugin in ScaffoldPlugin.plugins
         ]
 
     def render(self) -> None:
@@ -247,7 +259,7 @@ class Scaffold:
             if path.is_file() or path.is_dir():
                 relative_path = path.relative_to(self.config.template_root)
                 parts = [
-                    self.env.from_string(part).render(**self.config.metafields)
+                    self.env.from_string(part).render(self.config.metadata)
                     for part in relative_path.parts
                 ]
                 if any(part == '' for part in parts):
@@ -287,7 +299,7 @@ class Scaffold:
                 content = temp_path.content
                 if isinstance(content, str):
                     template = self.env.from_string(content)
-                    rendered_content = template.render(**self.config.metafields)
+                    rendered_content = template.render(self.config.metadata)
                     for plugin in plugins:
                         modified_content = plugin.on_render(temp_path, rendered_content)
                         if modified_content is not None:
@@ -329,6 +341,18 @@ class ScaffoldPlugin:
     def __init__(self, *, config: ScaffoldConfig, env: Environment) -> None:
         self.config = config
         self.env = env
+
+    def render(self, content: str) -> str:
+        """Render content using the plugin's Jinja2 environment.
+
+        Args:
+            content (str): The content to be rendered.
+
+        Returns:
+            str: The rendered content.
+        """
+        template = self.env.from_string(content)
+        return template.render(self.config.metadata)
 
     def initialize(self) -> None:
         """Hook called during Scaffold initialization."""
