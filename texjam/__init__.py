@@ -1,10 +1,13 @@
+from .config import JinjaConfig, MetaField, TemplateConfig, TexJamConfig
 from .path import TempPath
-from .scaffold import MetaField, Scaffold, ScaffoldConfig, ScaffoldPlugin
+from .scaffold import TexJam, TexJamPlugin
 
 __all__ = [
-    'Scaffold',
-    'ScaffoldConfig',
-    'ScaffoldPlugin',
+    'JinjaConfig',
     'MetaField',
+    'TemplateConfig',
+    'TexJamConfig',
     'TempPath',
+    'TexJam',
+    'TexJamPlugin',
 ]

@@ -10,7 +10,7 @@ from .package import (
     uninstall_package,
     update_package,
 )
-from .scaffold import Scaffold
+from .scaffold import TexJam
 from .source import parse_source
 
 
@@ -80,14 +80,10 @@ def new(output: Path, package: str) -> None:
     else:
         template_dir = get_package_path(package)
 
-    scaffold = Scaffold(template_dir=template_dir, project_dir=output)
-
-    metadata = {}
-    for key, meta_field in scaffold.config.metafields.items():
-        metadata[key] = meta_field.prompt(scaffold.env, metadata)
-    scaffold.config.metadata = metadata
-
-    scaffold.render()
+    texjam = TexJam(template_dir=template_dir, output_dir=output)
+    texjam.load_plugins()
+    texjam.prompt()
+    texjam.render()
 
 
 if __name__ == '__main__':

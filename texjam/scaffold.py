@@ -1,265 +1,117 @@
 from __future__ import annotations
 
-import json
-import keyword
 import sys
-from dataclasses import dataclass
+import tomllib
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from typing import Any
 
-import yaml
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment
 
+from .config import TexJamConfig
 from .path import TempPath
 
-PLUGIN_FOLDER = 'plugins'
-TEMP_FOLDER = 'src'
 
-
-@dataclass(kw_only=True)
-class MetaField:
-    """Dataclass to hold metadata items for scaffolding."""
-
-    key: str
-    prompt_str: str
-    type: type
-    default: Any | None = None
-    choices: list[Any] | None = None
-    required: bool = True
-
-    @classmethod
-    def from_item(cls, key: str, obj: Any) -> MetaField:
-        """Create a MetaField from an item.
-
-        Args:
-            obj (Any): The dictionary item representing a meta field.
-        """
-
-        if not key.isidentifier() or keyword.iskeyword(key):
-            raise ValueError(f'Invalid metadata key: {key}')
-
-        meta_field = cls(
-            key=key,
-            prompt_str=key.replace('_', ' ').capitalize(),
-            type=str,
-        )
-
-        if isinstance(obj, dict):
-            prompt = obj.get('prompt')
-            type_str = obj.get('type')
-            default = obj.get('default')
-            choices = obj.get('choices')
-            required = obj.get('required')
-
-            if prompt is not None:
-                assert isinstance(prompt, str)
-                meta_field.prompt_str = prompt
-
-            assert type_str is not None
-            assert isinstance(type_str, str)
-            supported_types: dict[str, type] = {
-                'str': str,
-                'int': int,
-                'float': float,
-                'bool': bool,
-            }
-            assert type_str in supported_types
-            meta_field.type = supported_types[type_str]
-
-            if default is not None:
-                assert isinstance(default, (str, meta_field.type))
-                meta_field.default = default
-                meta_field.required = False
-
-            if choices is not None:
-                assert isinstance(choices, list)
-                assert len(choices) > 0
-                assert meta_field.type is not bool
-                for choice in choices:
-                    assert isinstance(choice, (str, meta_field.type))
-                meta_field.choices = choices
-
-            if required is not None:
-                assert isinstance(required, bool)
-                if required:
-                    assert default is None
-                meta_field.required = required
-
-        elif obj is None:
-            pass
-
-        else:
-            assert isinstance(obj, (str, int, float, bool))
-            meta_field.default = obj
-            meta_field.type = type(obj)
-            meta_field.required = False
-
-        return meta_field
-
-    def prompt(self, env: Environment, metadata: dict[str, Any]) -> Any:
-        """Prompt the user for input based on the MetaField configuration."""
-
-        # render default
-        default = None
-        if self.default is not None:
-            if isinstance(self.default, str):
-                template = env.from_string(self.default)
-                default = template.render(metadata)
-                default = self.type(default)
-            else:
-                default = self.default
-
-        # render choices
-        choices = None
-        if self.choices is not None:
-            choices = []
-            for choice in self.choices:
-                if isinstance(choice, str):
-                    template = env.from_string(choice)
-                    rendered_choice = template.render(metadata)
-                    rendered_choice = self.type(rendered_choice)
-                    choices.append(rendered_choice)
-                else:
-                    choices.append(choice)
-
-        while True:
-            # build prompt string
-            prompt_str = f'{self.prompt_str}'
-
-            if self.type is bool:
-                if default is not None:
-                    prompt_str += ' (Y/n)' if default else ' (y/N)'
-                else:
-                    prompt_str += ' (y/n)'
-            else:
-                if choices is not None:
-                    prompt_str += f' ({str.join(", ", map(repr, choices))})'
-                if default is not None:
-                    prompt_str += f' [{default}]'
-            prompt_str += ': '
-
-            # process input
-            user_input = input(prompt_str).strip()
-            if user_input == '':
-                if self.required:
-                    print('This field is required.')
-                    continue
-                input_value = default
-            else:
-                try:
-                    if self.type is bool:
-                        if user_input.lower() in ('yes', 'y', 'true', 't', '1'):
-                            input_value = True
-                        elif user_input.lower() in ('no', 'n', 'false', 'f', '0'):
-                            input_value = False
-                        else:
-                            raise ValueError('Invalid boolean value.')
-                    else:
-                        input_value = self.type(user_input)
-                except ValueError:
-                    print(f'Invalid input. Expected type: {self.type.__name__}.')
-                    continue
-
-            # validate choices
-            if choices is not None and input_value not in choices:
-                print('Input not in allowed choices.')
-                continue
-
-            return input_value
-
-
-class Scaffold:
+class TexJam:
     """A class to scaffold LaTeX documents using Jinja2 templates."""
 
-    def __init__(self, template_dir: Path, project_dir: Path) -> None:
-        """Initialize the Scaffold with the directory containing templates.
+    def __init__(self, template_dir: Path, output_dir: Path) -> None:
+        """Initialize TexJam.
 
         Args:
             template_dir (str): The directory where LaTeX templates are stored.
-            project_dir (str): The directory where the project will be created.
+            output_dir (str): The directory where the project will be created.
         """
 
-        # initialize Jinja2 environment with custom delimiters for LaTeX
-        self.env = Environment(
-            loader=FileSystemLoader(template_dir),
-            variable_start_string='[-',
-            variable_end_string='-]',
-            block_start_string='[%',
-            block_end_string='%]',
-            comment_start_string='[#',
-            comment_end_string='#]',
-            autoescape=False,
-        )
+        # initialize paths
+        self.template_dir = template_dir.resolve()
+        self.output_dir = output_dir.resolve()
 
-        # read configuration file
-        json_file = template_dir / 'texjam.json'
-        yaml_file = template_dir / 'texjam.yaml'
-
-        if json_file.exists():
-            with json_file.open(encoding='utf-8') as f:
-                data = json.load(f)
-        elif yaml_file.exists():
-            with yaml_file.open(encoding='utf-8') as f:
-                data = yaml.safe_load(f)
-        else:
-            data = {}
-
-        if not isinstance(data, dict):
-            raise ValueError(
-                'Configuration file must contain a dictionary at the top level.'
-            )
-        metafields = {}
-        for key, value in data.items():
-            metafields[key] = MetaField.from_item(key, value)
-
-        self.config = ScaffoldConfig(
-            template_root=template_dir / TEMP_FOLDER,
-            project_root=project_dir,
-            metafields=metafields,
-            metadata={},
-        )
-
-    def _load_py_plugins(self) -> list[ScaffoldPlugin]:
-        """Load Scaffold plugins.
-
-        Returns:
-            list[ScaffoldPlugin]: A list of instantiated ScaffoldPlugin objects.
-        """
-        script_folder_path = self.config.template_root / PLUGIN_FOLDER
-        if not script_folder_path.exists():
-            return []
-
-        for script_file in script_folder_path.glob('*.py'):
-            module_name = script_file.stem
-            spec = spec_from_file_location(module_name, script_file)
-            if spec and spec.loader:
-                module = module_from_spec(spec)
-                sys.modules[module_name] = module
-                spec.loader.exec_module(module)
-
-        return [
-            plugin(config=self.config, env=self.env) for plugin in ScaffoldPlugin.plugins
+        # load config
+        config_candidates = [
+            template_dir / 'texjam.toml',
+            template_dir / '.texjam.toml',
         ]
+        config_file = None
+        for candidate in config_candidates:
+            if candidate.exists():
+                config_file = candidate
+                break
+        if config_file is None:
+            raise FileNotFoundError('No texjam.toml configuration file found.')
+
+        with config_file.open('rb') as f:
+            data = tomllib.load(f)
+        self.config = TexJamConfig.model_validate(data)
+
+    @property
+    def template_source_dir(self) -> Path:
+        """The source directory of the template."""
+        return self.template_dir / self.config.template.source_dir
+
+    @property
+    def template_plugin_dir(self) -> Path:
+        """The plugins directory of the template."""
+        return self.template_dir / self.config.template.plugin_dir
+
+    def load_plugins(self) -> None:
+        """Load plugins."""
+        if not self.template_plugin_dir.exists():
+            self.plugins = []
+
+        else:
+            for script_file in self.template_plugin_dir.glob('*.py'):
+                module_name = script_file.stem
+                spec = spec_from_file_location(module_name, script_file)
+                if spec and spec.loader:
+                    module = module_from_spec(spec)
+                    sys.modules[module_name] = module
+                    spec.loader.exec_module(module)
+
+            self.plugins: list[TexJamPlugin] = []
+            for plugin_cls in TexJamPlugin.plugins:
+                plugin_instance = plugin_cls(texjam=self)
+                plugin_instance.on_load()
+                self.plugins.append(plugin_instance)
+
+        self.env = Environment(**self.config.jinja.model_dump())
+
+    def prompt(self) -> None:
+        """Prompt the user for metadata values."""
+        # print welcome message
+        welcome_msg = f'Initializing project with template "{self.config.template.name}"'
+        if self.config.template.authors:
+            authors_str = ', '.join(self.config.template.authors)
+            welcome_msg += f' by {authors_str}'
+        print(welcome_msg)
+
+        # prompt for metadata
+        self.metadata: dict[str, Any] = {}
+        for field in self.config.meta:
+            self.metadata[field.key] = field.prompt(self.env, self.metadata)
 
     def render(self) -> None:
         """Render the templates and create the project structure."""
 
+        # initialize output directory
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
         # initialize plugins
-        plugins = self._load_py_plugins()
-        for plugin in plugins:
+        for plugin in self.plugins:
             plugin.initialize()
 
         # gather template paths
-        if not self.config.template_root.exists():
-            raise FileNotFoundError('There is no src folder in the template')
+        if not self.template_source_dir.exists():
+            raise FileNotFoundError(
+                f'Template source directory {self.template_source_dir} does not exist.'
+            )
 
         temp_paths = []
-        for path in self.config.template_root.rglob('*'):
+        for path in self.template_source_dir.rglob('*'):
             if path.is_file() or path.is_dir():
-                relative_path = path.relative_to(self.config.template_root)
+                relative_path = path.relative_to(self.template_source_dir)
                 parts = [
-                    self.env.from_string(part).render(self.config.metadata)
+                    self.env.from_string(part).render(self.metadata)
                     for part in relative_path.parts
                 ]
                 if any(part == '' for part in parts):
@@ -268,17 +120,17 @@ class Scaffold:
                 temp_path = TempPath(raw=path, rendered=rendered_path)
                 temp_paths.append(temp_path)
 
-        for plugin in plugins:
+        for plugin in self.plugins:
             modified_paths = plugin.on_paths(temp_paths)
             if modified_paths is not None:
                 temp_paths = modified_paths
 
         # create files and directories
         for temp_path in sorted(temp_paths, key=lambda p: p.rendered):
-            for plugin in plugins:
+            for plugin in self.plugins:
                 plugin.pre_create(temp_path)
 
-            target_path = self.config.project_root / temp_path.rendered
+            target_path = self.output_dir / temp_path.rendered
             if temp_path.is_dir:
                 if target_path.exists():
                     if len(temp_path.rendered.parts) == 1:
@@ -299,8 +151,8 @@ class Scaffold:
                 content = temp_path.content
                 if isinstance(content, str):
                     template = self.env.from_string(content)
-                    rendered_content = template.render(self.config.metadata)
-                    for plugin in plugins:
+                    rendered_content = template.render(self.metadata)
+                    for plugin in self.plugins:
                         modified_content = plugin.on_render(temp_path, rendered_content)
                         if modified_content is not None:
                             rendered_content = modified_content
@@ -311,26 +163,16 @@ class Scaffold:
             if temp_path.mode is not None:
                 target_path.chmod(temp_path.mode)
 
-            for plugin in plugins:
+            for plugin in self.plugins:
                 plugin.post_create(temp_path)
 
         # finalize plugins
-        for plugin in plugins:
+        for plugin in self.plugins:
             plugin.finalize()
 
 
-@dataclass(kw_only=True)
-class ScaffoldConfig:
-    """Dataclass to hold Scaffold configuration."""
-
-    template_root: Path
-    project_root: Path
-    metafields: dict[str, MetaField]
-    metadata: dict[str, Any]
-
-
-class ScaffoldPlugin:
-    """Abstract base class for Scaffold plugins."""
+class TexJamPlugin:
+    """Abstract base class for TexJam plugins."""
 
     plugins = []
 
@@ -338,9 +180,23 @@ class ScaffoldPlugin:
         cls.plugins.append(cls)
         return super().__init_subclass__()
 
-    def __init__(self, *, config: ScaffoldConfig, env: Environment) -> None:
-        self.config = config
-        self.env = env
+    def __init__(self, *, texjam: TexJam) -> None:
+        self.texjam = texjam
+
+    @property
+    def env(self) -> Environment:
+        """The Jinja2 environment from TexJam."""
+        return self.texjam.env
+
+    @property
+    def config(self) -> TexJamConfig:
+        """The TexJam configuration."""
+        return self.texjam.config
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """The TexJam metadata."""
+        return self.texjam.metadata
 
     def render(self, content: str) -> str:
         """Render content using the plugin's Jinja2 environment.
@@ -351,11 +207,15 @@ class ScaffoldPlugin:
         Returns:
             str: The rendered content.
         """
-        template = self.env.from_string(content)
-        return template.render(self.config.metadata)
+        template = self.texjam.env.from_string(content)
+        return template.render(self.metadata)
+
+    def on_load(self) -> None:
+        """Hook called when the plugin is loaded."""
+        pass
 
     def initialize(self) -> None:
-        """Hook called during Scaffold initialization."""
+        """Hook called during initialization."""
         pass
 
     def on_paths(self, paths: list[TempPath]) -> list[TempPath] | None:

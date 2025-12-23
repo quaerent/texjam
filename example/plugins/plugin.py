@@ -1,18 +1,17 @@
 from pathlib import Path
 
-from texjam import ScaffoldPlugin
-from texjam.path import TempPath
+from texjam import TempPath, TexJamPlugin
 
 
-class ExamplePlugin(ScaffoldPlugin):
+class ExamplePlugin(TexJamPlugin):
     def initialize(self) -> None:
-        self.config.metadata['example'] = True
+        self.metadata['example'] = True
 
     def finalize(self) -> None:
-        (self.config.project_root / self.config.metadata['slug'] / 'finalize.txt').touch()
+        (self.texjam.output_dir / self.metadata['slug'] / 'finalize.txt').touch()
 
     def on_paths(self, paths: list[TempPath]) -> list[TempPath] | None:
-        path = Path(self.config.metadata['slug'], 'path.txt')
+        path = Path(self.metadata['slug'], 'path.txt')
         paths.append(TempPath(rendered=path, is_dir=False, content=''))
         return paths
 
