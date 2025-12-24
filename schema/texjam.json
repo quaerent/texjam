@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/quaerent/texjam/schema/texjam.json",
+  "title": "TexJam Configuration Schema",
+  "type": "object",
+  "properties": {
+    "template": {
+      "description": "Template configuration.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The name of the template.",
+          "type": "string"
+        },
+        "authors": {
+          "description": "List of authors for the template.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "description": "A brief description of the template.",
+          "type": "string"
+        },
+        "source_dir": {
+          "description": "The source directory for the template files.",
+          "type": "string",
+          "default": "src"
+        },
+        "plugin_dir": {
+          "description": "The directory for template plugins.",
+          "type": "string",
+          "default": "plugins"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "meta": {
+      "description": "Metadata fields for the template.",
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "description": "The prompt message for the metadata field.",
+                "type": "string"
+              },
+              "type": {
+                "description": "The data type of the metadata field.",
+                "type": "string",
+                "enum": [
+                  "str",
+                  "int",
+                  "float",
+                  "bool"
+                ]
+              },
+              "default": {
+                "description": "The default value for the metadata field.",
+                "type": [
+                  "string",
+                  "number",
+                  "boolean"
+                ]
+              },
+              "choices": {
+                "description": "A list of choices for the metadata field.",
+                "type": "array",
+                "items": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        ]
+      }
+    },
+    "jinja": {
+      "description": "Jinja2 environment configuration.",
+      "type": "object",
+      "properties": {
+        "block_start_string": {
+          "description": "The string marking the beginning of a block.",
+          "type": "string",
+          "default": "((*"
+        },
+        "block_end_string": {
+          "description": "The string marking the end of a block.",
+          "type": "string",
+          "default": "*))"
+        },
+        "variable_start_string": {
+          "description": "The string marking the beginning of a print statement.",
+          "type": "string",
+          "default": "((("
+        },
+        "variable_end_string": {
+          "description": "The string marking the end of a print statement.",
+          "type": "string",
+          "default": ")))"
+        },
+        "comment_start_string": {
+          "description": "The string marking the beginning of a comment.",
+          "type": "string",
+          "default": "((="
+        },
+        "comment_end_string": {
+          "description": "The string marking the end of a comment.",
+          "type": "string",
+          "default": "=))"
+        },
+        "line_statement_prefix": {
+          "description": "The prefix for line based statements.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "line_comment_prefix": {
+          "description": "The prefix for line based comments.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "trim_blocks": {
+          "description": "Whether the first newline after a block is removed.",
+          "type": "boolean",
+          "default": true
+        },
+        "lstrip_blocks": {
+          "description": "Whether leading spaces and tabs are stripped from the start of a line to a block.",
+          "type": "boolean",
+          "default": true
+        },
+        "newline_sequence": {
+          "description": "The sequence that starts a newline.",
+          "type": "string",
+          "default": "\n"
+        },
+        "keep_trailing_newline": {
+          "description": "Whether to preserve the trailing newline when rendering templates.",
+          "type": "boolean",
+          "default": true
+        },
+        "autoescape": {
+          "description": "Whether the XML/HTML autoescaping feature is enabled by default.",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    }
+  },
+  "required": [
+    "template"
+  ]
+}
