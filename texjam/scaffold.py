@@ -8,7 +8,7 @@ from typing import Any
 
 from jinja2 import Environment
 
-from .config import TexJamConfig
+from .config import MetaField, TexJamConfig
 from .path import TempPath
 
 
@@ -88,7 +88,19 @@ class TexJam:
         # prompt for metadata
         self.metadata: dict[str, Any] = {}
         for field in self.config.meta:
-            self.metadata[field.key] = field.prompt(self.env, self.metadata)
+            skip_prompt = False
+            for plugin in self.plugins:
+                result = plugin.pre_prompt(field)
+                if result is True:
+                    skip_prompt = True
+                    break
+            if skip_prompt:
+                continue
+
+            value = field.prompt(self.env, self.metadata)
+            for plugin in self.plugins:
+                value = plugin.post_prompt(field, value)
+            self.metadata[field.key] = value
 
     def render(self) -> None:
         """Render the templates and create the project structure."""
@@ -213,6 +225,30 @@ class TexJamPlugin:
     def on_load(self) -> None:
         """Hook called when the plugin is loaded."""
         pass
+
+    def pre_prompt(self, field: MetaField) -> bool | None:
+        """Hook to modify a MetaField before prompting.
+
+        Args:
+            field (MetaField): The MetaField object to be processed.
+
+        Returns:
+            bool | None: If True, skip prompting for this field.
+            If False or None, proceed with prompting.
+        """
+        pass
+
+    def post_prompt(self, field: MetaField, value: Any) -> Any:
+        """Hook called after a MetaField has been prompted.
+
+        Args:
+            field (MetaField): The MetaField object that was prompted.
+            value (Any): The value that was obtained from prompting.
+
+        Returns:
+            Any: The (possibly modified) value.
+        """
+        return value
 
     def initialize(self) -> None:
         """Hook called during initialization."""
