@@ -17,3 +17,8 @@ class ExamplePlugin(TexJamPlugin):
 
     def on_render(self, path: TempPath, rendered: str) -> str | None:
         return rendered + '\n<!-- Rendered by ExamplePlugin -->\n'
+
+
+class _IgnoredPlugin(TexJamPlugin):
+    def on_paths(self, paths: list[TempPath]) -> list[TempPath] | None:
+        raise NotImplementedError('This plugin should be ignored.')
