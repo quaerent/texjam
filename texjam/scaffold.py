@@ -189,7 +189,8 @@ class TexJamPlugin:
     plugins = []
 
     def __init_subclass__(cls) -> None:
-        cls.plugins.append(cls)
+        if not cls.__name__.startswith('_'):
+            cls.plugins.append(cls)
         return super().__init_subclass__()
 
     def __init__(self, *, texjam: TexJam) -> None:
