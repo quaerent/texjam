@@ -90,3 +90,8 @@ class TempPath:
     def content(self, value: str | bytes) -> None:
         """Set the content of the file."""
         self._content = value
+
+    def __repr__(self) -> str:
+        if self.raw is None:
+            return f'"{self.rendered.as_posix()}"'
+        return f'"{self.raw.as_posix()}" -> "{self.rendered.as_posix()}"'

@@ -2,6 +2,7 @@ from pathlib import Path
 
 import click
 
+from .exception import TexJamException
 from .package import (
     checkout_package,
     get_package_path,
@@ -14,7 +15,16 @@ from .scaffold import TexJam
 from .source import parse_source
 
 
-@click.group('texjam')
+class TexJamExceptionHandler(click.Group):
+    def invoke(self, ctx: click.Context) -> None:
+        try:
+            return super().invoke(ctx)
+        except TexJamException as e:
+            click.echo(e, err=True)
+            ctx.exit(1)
+
+
+@click.group('texjam', cls=TexJamExceptionHandler)
 @click.version_option(None, '--version', '-v')
 def cli() -> None:
     pass

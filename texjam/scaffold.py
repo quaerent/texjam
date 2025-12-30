@@ -6,9 +6,15 @@ from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from typing import Any
 
-from jinja2 import Environment
+from jinja2 import Environment, TemplateError
 
 from .config import MetaField, TexJamConfig
+from .exception import (
+    TexJamScaffoldConfigNotFoundException,
+    TexJamScaffoldPathAlreadyExistsException,
+    TexJamScaffoldSourceDirNotFoundException,
+    TexJamTemplateStringException,
+)
 from .path import TempPath
 
 
@@ -38,7 +44,7 @@ class TexJam:
                 config_file = candidate
                 break
         if config_file is None:
-            raise FileNotFoundError('No texjam.toml configuration file found.')
+            raise TexJamScaffoldConfigNotFoundException()
 
         with config_file.open('rb') as f:
             data = tomllib.load(f)
@@ -53,6 +59,21 @@ class TexJam:
     def template_plugin_dir(self) -> Path:
         """The plugins directory of the template."""
         return self.template_dir / self.config.template.plugin_dir
+
+    def jinja_render(self, content: str) -> str:
+        """Render content using the Jinja2 environment.
+
+        Args:
+            content (str): The content to be rendered.
+
+        Returns:
+            str: The rendered content.
+        """
+        try:
+            template = self.env.from_string(content)
+            return template.render(self.metadata)
+        except TemplateError as e:
+            raise TexJamTemplateStringException(template_string=content, cause=e)
 
     def load_plugins(self) -> None:
         """Load plugins."""
@@ -114,8 +135,8 @@ class TexJam:
 
         # gather template paths
         if not self.template_source_dir.exists():
-            raise FileNotFoundError(
-                f'Template source directory {self.template_source_dir} does not exist.'
+            raise TexJamScaffoldSourceDirNotFoundException(
+                source_dir=self.template_source_dir.as_posix()
             )
 
         temp_paths = []
@@ -145,17 +166,15 @@ class TexJam:
             target_path = self.output_dir / temp_path.rendered
             if temp_path.is_dir:
                 if target_path.exists():
-                    if len(temp_path.rendered.parts) == 1:
-                        raise FileExistsError(
-                            f'Project directory {target_path} already exists.'
-                        )
-                    else:
-                        raise FileExistsError(f'Directory {target_path} already exists.')
+                    raise TexJamScaffoldPathAlreadyExistsException(path=temp_path)
                 else:
                     target_path.mkdir(parents=True, exist_ok=False)
             else:
                 if not target_path.parent.exists():
-                    raise FileNotFoundError(
+                    # Parent directory does not exist.
+                    # This should not happen because paths are sorted
+                    # so that parent directories are created first.
+                    raise RuntimeError(
                         f'Parent directory {target_path.parent} does not exist.'
                     )
 
