@@ -27,7 +27,7 @@ class LocalSource(Source):
     """Source representing a local file system path."""
 
     def __init__(self, path: Path) -> None:
-        self._path = path.absolute()
+        self._path = path.resolve()
 
     def download(self, path: Path) -> None:
         shutil.copytree(self._path, path)
