@@ -11,16 +11,20 @@ def ensure_install_dir() -> None:
     PACKAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def install_package(source: Source) -> str:
+def install_package(source: Source, force: bool = False) -> str:
     """Install a package from the given source.
 
     Args:
         source (Source): The source of the package to install.
+        force (bool): Whether to force reinstallation if already installed.
     """
     ensure_install_dir()
     package_path = PACKAGE_DIR / source.name
     if package_path.exists():
-        raise TexJamPackageAlreadyExistsException(package_name=source.name)
+        if force:
+            subprocess.run(['rm', '-rf', str(package_path)])
+        else:
+            raise TexJamPackageAlreadyExistsException(package_name=source.name)
     source.download(package_path)
     return source.name
 

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import click
+from click_aliases import ClickAliasedGroup
 
 from .exception import TexJamException
 from .package import (
@@ -15,7 +16,7 @@ from .scaffold import TexJam
 from .source import parse_source
 
 
-class TexJamExceptionHandler(click.Group):
+class TexJamGroup(ClickAliasedGroup):
     def invoke(self, ctx: click.Context) -> None:
         try:
             return super().invoke(ctx)
@@ -24,13 +25,13 @@ class TexJamExceptionHandler(click.Group):
             ctx.exit(1)
 
 
-@click.group('texjam', cls=TexJamExceptionHandler)
+@click.group('texjam', cls=TexJamGroup)
 @click.version_option(None, '--version', '-v')
 def cli() -> None:
     pass
 
 
-@cli.command
+@cli.command(aliases=['ls'])
 def list() -> None:
     """List all installed TexJam packages."""
     packages = list_installed_packages()
@@ -42,16 +43,22 @@ def list() -> None:
         click.echo(f'- {pkg}')
 
 
-@cli.command
+@cli.command(aliases=['i', 'add'])
+@click.option(
+    '--force',
+    '-f',
+    is_flag=True,
+    help='Force reinstallation if already installed.',
+)
 @click.argument('source', type=str)
-def install(source: str) -> None:
+def install(force: bool, source: str) -> None:
     """Install a TexJam package."""
     parsed_source = parse_source(source)
-    package_name = install_package(parsed_source)
+    package_name = install_package(parsed_source, force)
     click.echo(f'Installed package: {package_name}')
 
 
-@cli.command
+@cli.command(aliases=['un', 'remove', 'rm'])
 @click.argument('package', type=str)
 def uninstall(package: str) -> None:
     """Uninstall a TexJam package."""
@@ -59,7 +66,7 @@ def uninstall(package: str) -> None:
     click.echo(f'Uninstalled package: {package}')
 
 
-@cli.command
+@cli.command(aliases=['up'])
 @click.option('--revision', '-r', type=str, help='Revision to checkout.')
 @click.argument('package', type=str)
 def update(package: str, revision: str | None) -> None:
