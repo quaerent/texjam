@@ -2,7 +2,7 @@ from typing import Literal
 
 from jinja2 import TemplateError
 
-from .path import TempPath
+from .render.path import TempPath
 
 
 class TexJamException(Exception):

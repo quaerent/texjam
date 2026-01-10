@@ -4,97 +4,30 @@
   "title": "TexJam Configuration Schema",
   "type": "object",
   "properties": {
-    "template": {
-      "description": "Template configuration.",
-      "type": "object",
-      "properties": {
-        "name": {
-          "description": "The name of the template.",
-          "type": "string"
-        },
-        "authors": {
-          "description": "List of authors for the template.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "description": {
-          "description": "A brief description of the template.",
-          "type": "string"
-        },
-        "source_dir": {
-          "description": "The source directory for the template files.",
-          "type": "string",
-          "default": "src"
-        },
-        "plugin_dir": {
-          "description": "The directory for template plugins.",
-          "type": "string",
-          "default": "plugins"
-        }
-      },
-      "required": [
-        "name"
-      ]
+    "name": {
+      "description": "The name of the template.",
+      "type": "string"
     },
-    "meta": {
-      "description": "Metadata fields for the template.",
-      "type": "object",
-      "additionalProperties": {
-        "anyOf": [
-          {
-            "type": [
-              "string",
-              "number",
-              "boolean",
-              "null"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "prompt": {
-                "description": "The prompt message for the metadata field.",
-                "type": "string"
-              },
-              "type": {
-                "description": "The data type of the metadata field.",
-                "type": "string",
-                "enum": [
-                  "str",
-                  "int",
-                  "float",
-                  "bool"
-                ]
-              },
-              "default": {
-                "description": "The default value for the metadata field.",
-                "type": [
-                  "string",
-                  "number",
-                  "boolean"
-                ]
-              },
-              "choices": {
-                "description": "A list of choices for the metadata field.",
-                "type": "array",
-                "items": {
-                  "type": [
-                    "string",
-                    "number",
-                    "boolean",
-                    "null"
-                  ]
-                }
-              }
-            },
-            "required": [
-              "type"
-            ]
-          }
-        ]
+    "authors": {
+      "description": "List of authors for the template.",
+      "type": "array",
+      "items": {
+        "type": "string"
       }
+    },
+    "description": {
+      "description": "A brief description of the template.",
+      "type": "string"
+    },
+    "source_dir": {
+      "description": "The source directory for the template files.",
+      "type": "string",
+      "default": "src"
+    },
+    "plugin_dir": {
+      "description": "The directory for template plugins.",
+      "type": "string",
+      "default": "plugins"
     },
     "jinja": {
       "description": "Jinja2 environment configuration.",
@@ -172,9 +105,239 @@
           "default": false
         }
       }
+    },
+    "meta": {
+      "type": "object",
+      "description": "Metadata fields for user prompts.",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "str"
+                ],
+                "description": "Type of the metadata field."
+              },
+              "default": {
+                "type": "string",
+                "default": "",
+                "description": "Default value for the metadata field."
+              },
+              "min_length": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Minimum length for the string."
+              },
+              "max_length": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Maximum length for the string."
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "number"
+                ],
+                "description": "Type of the metadata field."
+              },
+              "default": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "default": null,
+                "description": "Default value for the metadata field."
+              },
+              "is_integer": {
+                "type": "boolean",
+                "description": "Whether the number should be an integer."
+              },
+              "min_value": {
+                "type": "number",
+                "description": "Minimum value for the number."
+              },
+              "max_value": {
+                "type": "number",
+                "description": "Maximum value for the number."
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "bool"
+                ],
+                "description": "Type of the metadata field."
+              },
+              "default": {
+                "type": "boolean",
+                "default": false,
+                "description": "Default value for the metadata field."
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "path"
+                ],
+                "description": "Type of the metadata field."
+              },
+              "default": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "default": null,
+                "description": "Default value for the metadata field."
+              },
+              "exists": {
+                "type": "boolean",
+                "default": false,
+                "description": "Whether the path must exist."
+              },
+              "is_dir": {
+                "type": "boolean",
+                "default": false,
+                "description": "Whether the path must be a directory."
+              },
+              "is_file": {
+                "type": "boolean",
+                "default": false,
+                "description": "Whether the path must be a file."
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "choice"
+                ],
+                "description": "Type of the metadata field."
+              },
+              "default": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "default": null,
+                "description": "Default value for the metadata field."
+              },
+              "choices": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              }
+            },
+            "required": [
+              "type",
+              "choices"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "select"
+                ],
+                "description": "Type of the metadata field."
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "description": "The title of the selectable item."
+                        },
+                        "value": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "default": null,
+                          "description": "The value associated with the selectable item."
+                        },
+                        "default": {
+                          "type": "boolean",
+                          "default": false,
+                          "description": "Whether this item is selected by default."
+                        }
+                      },
+                      "minItems": 1,
+                      "required": [
+                        "title"
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "required": [
+              "type",
+              "items"
+            ]
+          }
+        ]
+      }
     }
   },
   "required": [
-    "template"
+    "name",
+    "meta"
   ]
 }

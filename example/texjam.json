@@ -1,0 +1,33 @@
+{
+  "$schema": "../schema/texjam.json",
+  "name": "Example",
+  "authors": [
+    "Quaerent"
+  ],
+  "meta": {
+    "name": "Foo Bar",
+    "slug": "((( name | lower | replace(' ', '_') )))",
+    "age_of_father": {
+      "type": "number",
+      "default": 42,
+      "min_value": 0,
+      "max_value": 120
+    },
+    "age_of_mother": {
+      "type": "number",
+      "default": 39,
+      "min_value": 0,
+      "max_value": 120
+    },
+    "family": {
+      "type": "select",
+      "items": [
+        {
+          "title": "brother",
+          "default": true
+        },
+        "sister"
+      ]
+    }
+  }
+}

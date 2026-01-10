@@ -1,7 +1,7 @@
 import subprocess
 from pathlib import Path
 
-from .exception import TexJamPackageAlreadyExistsException, TexJamPackageNotFoundException
+from .. import exception as exc
 from .source import Source
 
 PACKAGE_DIR = Path.home() / '.texjam' / 'packages'
@@ -24,7 +24,7 @@ def install_package(source: Source, force: bool = False) -> str:
         if force:
             subprocess.run(['rm', '-rf', str(package_path)])
         else:
-            raise TexJamPackageAlreadyExistsException(package_name=source.name)
+            raise exc.TexJamPackageAlreadyExistsException(package_name=source.name)
     source.download(package_path)
     return source.name
 
@@ -37,7 +37,7 @@ def update_package(package_name: str) -> None:
     """
     package_path = PACKAGE_DIR / package_name
     if not package_path.exists():
-        raise TexJamPackageNotFoundException(package_name=package_name)
+        raise exc.TexJamPackageNotFoundException(package_name=package_name)
     subprocess.run(['git', 'checkout', 'main'], cwd=str(package_path))
     subprocess.run(['git', 'pull'], cwd=str(package_path))
 
@@ -51,7 +51,7 @@ def checkout_package(package_name: str, revision: str) -> None:
     """
     package_path = PACKAGE_DIR / package_name
     if not package_path.exists():
-        raise TexJamPackageNotFoundException(package_name=package_name)
+        raise exc.TexJamPackageNotFoundException(package_name=package_name)
     subprocess.run(['git', 'checkout', revision], cwd=str(package_path))
 
 
@@ -63,7 +63,7 @@ def uninstall_package(package_name: str) -> None:
     """
     package_path = PACKAGE_DIR / package_name
     if not package_path.exists():
-        raise TexJamPackageNotFoundException(package_name=package_name)
+        raise exc.TexJamPackageNotFoundException(package_name=package_name)
     subprocess.run(['rm', '-rf', str(package_path)])
 
 
@@ -87,5 +87,5 @@ def get_package_path(package_name: str) -> Path:
     """
     path = PACKAGE_DIR / package_name
     if not path.exists():
-        raise TexJamPackageNotFoundException(package_name=package_name)
+        raise exc.TexJamPackageNotFoundException(package_name=package_name)
     return path

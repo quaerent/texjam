@@ -1,2 +1,0 @@
-
-<!-- Rendered by ExamplePlugin -->

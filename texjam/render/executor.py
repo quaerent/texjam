@@ -1,20 +1,17 @@
 from __future__ import annotations
 
+import json
 import sys
-import tomllib
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from typing import Any
 
+import yaml
 from jinja2 import Environment, TemplateError
+from rich import print
 
-from .config import MetaField, TexJamConfig
-from .exception import (
-    TexJamScaffoldConfigNotFoundException,
-    TexJamScaffoldPathAlreadyExistsException,
-    TexJamScaffoldSourceDirNotFoundException,
-    TexJamTemplateStringException,
-)
+from .. import exception as exc
+from ..config import MetaField, Prompter, TexJamConfig
 from .path import TempPath
 
 
@@ -35,8 +32,12 @@ class TexJam:
 
         # load config
         config_candidates = [
-            template_dir / 'texjam.toml',
-            template_dir / '.texjam.toml',
+            self.template_dir / 'texjam.json',
+            self.template_dir / '.texjam.json',
+            self.template_dir / 'texjam.yaml',
+            self.template_dir / '.texjam.yaml',
+            self.template_dir / 'texjam.yml',
+            self.template_dir / '.texjam.yml',
         ]
         config_file = None
         for candidate in config_candidates:
@@ -44,21 +45,25 @@ class TexJam:
                 config_file = candidate
                 break
         if config_file is None:
-            raise TexJamScaffoldConfigNotFoundException()
+            raise exc.TexJamScaffoldConfigNotFoundException()
 
-        with config_file.open('rb') as f:
-            data = tomllib.load(f)
-        self.config = TexJamConfig.model_validate(data)
+        with config_file.open('r', encoding='utf-8') as f:
+            if config_file.suffix in ['.yaml', '.yml']:
+                config_data = yaml.safe_load(f)
+            else:
+                config_data = json.load(f)
+
+        self.config = TexJamConfig.model_validate(config_data)
 
     @property
     def template_source_dir(self) -> Path:
         """The source directory of the template."""
-        return self.template_dir / self.config.template.source_dir
+        return self.template_dir / self.config.source_dir
 
     @property
     def template_plugin_dir(self) -> Path:
         """The plugins directory of the template."""
-        return self.template_dir / self.config.template.plugin_dir
+        return self.template_dir / self.config.plugin_dir
 
     def jinja_render(self, content: str) -> str:
         """Render content using the Jinja2 environment.
@@ -73,7 +78,7 @@ class TexJam:
             template = self.env.from_string(content)
             return template.render(self.metadata)
         except TemplateError as e:
-            raise TexJamTemplateStringException(template_string=content, cause=e)
+            raise exc.TexJamTemplateStringException(template_string=content, cause=e)
 
     def load_plugins(self) -> None:
         """Load plugins."""
@@ -100,28 +105,39 @@ class TexJam:
     def prompt(self) -> None:
         """Prompt the user for metadata values."""
         # print welcome message
-        welcome_msg = f'Initializing project with template "{self.config.template.name}"'
-        if self.config.template.authors:
-            authors_str = ', '.join(self.config.template.authors)
-            welcome_msg += f' by {authors_str}'
-        print(welcome_msg)
+        print(
+            f'[bold green]TexJam[/bold green] - Scaffolding project: '
+            f'[bold]{self.config.name}[/bold]'
+        )
 
         # prompt for metadata
         self.metadata: dict[str, Any] = {}
-        for field in self.config.meta:
+        prompter = Prompter(self)
+        for name, field in self.config.meta.items():
+            # pre-prompt hook
             skip_prompt = False
             for plugin in self.plugins:
-                result = plugin.pre_prompt(field)
+                result = plugin.pre_prompt(name, field)
                 if result is True:
                     skip_prompt = True
                     break
             if skip_prompt:
                 continue
 
-            value = field.prompt(self.env, self.metadata)
+            # prompt user
+            value = prompter.prompt_meta_field(name, field)
+
+            # post-prompt hook
+            intercept_store = False
             for plugin in self.plugins:
-                value = plugin.post_prompt(field, value)
-            self.metadata[field.key] = value
+                result = plugin.post_prompt(name, field, value)
+                if result is True:
+                    intercept_store = True
+                    break
+            if intercept_store:
+                continue
+
+            self.metadata[name] = value
 
     def render(self) -> None:
         """Render the templates and create the project structure."""
@@ -135,7 +151,7 @@ class TexJam:
 
         # gather template paths
         if not self.template_source_dir.exists():
-            raise TexJamScaffoldSourceDirNotFoundException(
+            raise exc.TexJamScaffoldSourceDirNotFoundException(
                 source_dir=self.template_source_dir.as_posix()
             )
 
@@ -166,7 +182,7 @@ class TexJam:
             target_path = self.output_dir / temp_path.rendered
             if temp_path.is_dir:
                 if target_path.exists():
-                    raise TexJamScaffoldPathAlreadyExistsException(path=temp_path)
+                    raise exc.TexJamScaffoldPathAlreadyExistsException(path=temp_path)
                 else:
                     target_path.mkdir(parents=True, exist_ok=False)
             else:
@@ -246,29 +262,28 @@ class TexJamPlugin:
         """Hook called when the plugin is loaded."""
         pass
 
-    def pre_prompt(self, field: MetaField) -> bool | None:
-        """Hook to modify a MetaField before prompting.
+    def pre_prompt(self, name: str, field: MetaField) -> bool | None:
+        """Hook called before prompting for a metadata field.
 
         Args:
-            field (MetaField): The MetaField object to be processed.
-
+            name (str): The name of the metadata field.
+            field (MetaField): The metadata field.
         Returns:
-            bool | None: If True, skip prompting for this field.
-            If False or None, proceed with prompting.
+            bool | None: Return True to skip prompting for this field,
         """
         pass
 
-    def post_prompt(self, field: MetaField, value: Any) -> Any:
-        """Hook called after a MetaField has been prompted.
+    def post_prompt(self, name: str, field: MetaField, value: Any) -> bool | None:
+        """Hook called after prompting for a metadata field.
 
         Args:
-            field (MetaField): The MetaField object that was prompted.
-            value (Any): The value that was obtained from prompting.
-
+            name (str): The name of the metadata field.
+            field (MetaField): The metadata field.
+            value (Any): The value entered by the user.
         Returns:
-            Any: The (possibly modified) value.
+            bool | None: Return True to intercept and not store the value.
         """
-        return value
+        pass
 
     def initialize(self) -> None:
         """Hook called during initialization."""
