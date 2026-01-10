@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Callable
 
 import questionary
+import typer
 from pydantic import BaseModel, WrapValidator, model_validator
 
 if TYPE_CHECKING:
@@ -257,7 +258,7 @@ class MetaPath(MetaBase):
         }
 
     def _convert_answer(self, answer: Any) -> Any:
-        return str(Path(answer).resolve())
+        return Path(answer)
 
 
 class MetaChoice(MetaBase):
@@ -282,7 +283,6 @@ class MetaChoice(MetaBase):
             'message': prompt,
             'choices': self.choices,
             'default': default,
-            'validate': validate,
         }
 
 
@@ -417,5 +417,8 @@ class Prompter:
             validate=lambda ans: field._question_validate(ans) or True,
         )
         prompt_dict['name'] = 'response'
-        answer = questionary.prompt([prompt_dict])['response']
-        return field._convert_answer(answer)
+        answer = questionary.prompt([prompt_dict])
+        if answer is None or len(answer) == 0:
+            # aborted by Ctrl+C
+            raise typer.Abort()
+        return field._convert_answer(answer['response'])

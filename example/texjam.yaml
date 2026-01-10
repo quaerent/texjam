@@ -1,0 +1,45 @@
+name: Example Template
+authors:
+  - Quaerent
+
+meta:
+  name: Example Project
+  slug: ((( name | lower | replace(" ", "-") )))
+  string:
+    type: str
+    prompt: Prompt for a string value
+    default: default string
+    min_length: 2
+    max_length: 30
+  number:
+    type: number
+    prompt: Prompt for a number value
+    default: 42
+    min: 10
+    max: 100
+    is_integer: true
+  boolean:
+    type: bool
+    prompt: Prompt for a boolean value
+    default: true
+  path:
+    type: path
+    prompt: Prompt for a path value
+    default: default/path
+  choice:
+    type: choice
+    prompt: Prompt for a choice value
+    choices:
+      - option1
+      - option2
+      - option3
+    default: option2
+  select:
+    type: select
+    prompt: Prompt for a select value
+    items:
+      - item1
+      - title: item2
+        value: val2
+        default: true
+      - item3

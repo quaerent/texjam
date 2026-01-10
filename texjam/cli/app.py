@@ -4,7 +4,6 @@ from typing import Annotated
 import typer
 from rich import print
 
-from ..exception import TexJamException
 from ..render import TexJam
 from . import package as pkg
 from .source import parse_source
@@ -12,7 +11,24 @@ from .source import parse_source
 app = typer.Typer()
 
 
+def alias(*names: str):
+    def decorator(func):
+        func.__doc__ += f' (also {", ".join(repr(name) for name in names)})'
+        for name in names:
+            app.command(name=name, hidden=True)(func)
+        return func
+
+    return decorator
+
+
+@app.callback()
+def callback():
+    """TexJam CLI - A tool for managing LaTeX project templates."""
+    pass
+
+
 @app.command()
+@alias('ls')
 def list() -> None:
     """List all installed TexJam packages."""
     packages = pkg.list_installed_packages()
@@ -25,6 +41,7 @@ def list() -> None:
 
 
 @app.command()
+@alias('add', 'i')
 def install(
     *,
     source: Annotated[
@@ -49,6 +66,7 @@ def install(
 
 
 @app.command()
+@alias('remove', 'rm', 'un')
 def uninstall(
     *,
     package: Annotated[
@@ -64,6 +82,7 @@ def uninstall(
 
 
 @app.command()
+@alias('up')
 def update(
     *,
     package: Annotated[
@@ -89,7 +108,8 @@ def update(
 
 
 @app.command()
-def new(
+@alias('new', 'init')
+def create(
     *,
     package: Annotated[
         str,
@@ -133,16 +153,6 @@ def new(
             dir_okay=False,
             readable=True,
             help='Path to a YAML file containing metadata.',
-        ),
-    ] = None,
-    toml_file: Annotated[
-        Path | None,
-        typer.Option(
-            exists=True,
-            file_okay=True,
-            dir_okay=False,
-            readable=True,
-            help='Path to a TOML file containing metadata.',
         ),
     ] = None,
 ) -> None:
