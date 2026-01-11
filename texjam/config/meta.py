@@ -30,7 +30,7 @@ class MetaBase(BaseModel, ABC):
     def _prompt_dict(
         self,
         prompt: str,
-        default: str,
+        default: str | None,
         validate: Callable[[str], bool],
     ) -> dict[str, Any]: ...
 
@@ -86,7 +86,7 @@ class MetaStr(MetaBase):
     def _prompt_dict(
         self,
         prompt: str,
-        default: str,
+        default: str | None,
         validate: Callable[[str], bool],
     ) -> dict[str, Any]:
         return {
@@ -168,7 +168,7 @@ class MetaNumber(MetaBase):
     def _prompt_dict(
         self,
         prompt: str,
-        default: str,
+        default: str | None,
         validate: Callable[[str], bool],
     ) -> dict[str, Any]:
         return {
@@ -191,7 +191,7 @@ class MetaBool(MetaBase):
     def _prompt_dict(
         self,
         prompt: str,
-        default: str,
+        default: str | None,
         validate: Callable[[str], bool],
     ) -> dict[str, Any]:
         return {
@@ -246,7 +246,7 @@ class MetaPath(MetaBase):
     def _prompt_dict(
         self,
         prompt: str,
-        default: str,
+        default: str | None,
         validate: Callable[[str], bool],
     ) -> dict[str, Any]:
         return {
@@ -275,7 +275,7 @@ class MetaChoice(MetaBase):
     def _prompt_dict(
         self,
         prompt: str,
-        default: str,
+        default: str | None,
         validate: Callable[[str], bool],
     ) -> dict[str, Any]:
         return {
@@ -299,7 +299,7 @@ class MetaSelect(MetaBase):
     def _prompt_dict(
         self,
         prompt: str,
-        default: str,
+        default: str | None,
         validate: Callable[[str], bool],
     ) -> dict[str, Any]:
         return {
@@ -406,20 +406,18 @@ class Prompter:
             _default = field.default  # type: ignore
             if isinstance(_default, str):
                 default_value = self._render_value(_default) or ''
-            else:
+            elif _default is not None:
                 default_value = str(_default)
+            else:
+                default_value = None
         else:
-            default_value = ''
+            default_value = None
 
         prompt_dict = field._prompt_dict(
             prompt=prompt,
             default=default_value,
             validate=lambda ans: field._question_validate(ans) or True,
         )
-        if prompt_dict['default'] is None:
-            # some types of questionary prompts do not accept None as default,
-            # so we remove it from the dict
-            del prompt_dict['default']
         prompt_dict['name'] = 'response'
         answer = questionary.prompt([prompt_dict])
         if answer is None or len(answer) == 0:
