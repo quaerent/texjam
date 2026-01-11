@@ -129,6 +129,12 @@
           {
             "type": "object",
             "properties": {
+              "prompt": {
+                "$ref": "#/$defs/prompt"
+              },
+              "required": {
+                "$ref": "#/$defs/required"
+              },
               "type": {
                 "type": "string",
                 "enum": [
@@ -159,6 +165,12 @@
           {
             "type": "object",
             "properties": {
+              "prompt": {
+                "$ref": "#/$defs/prompt"
+              },
+              "required": {
+                "$ref": "#/$defs/required"
+              },
               "type": {
                 "type": "string",
                 "enum": [
@@ -194,6 +206,12 @@
           {
             "type": "object",
             "properties": {
+              "prompt": {
+                "$ref": "#/$defs/prompt"
+              },
+              "required": {
+                "$ref": "#/$defs/required"
+              },
               "type": {
                 "type": "string",
                 "enum": [
@@ -214,6 +232,12 @@
           {
             "type": "object",
             "properties": {
+              "prompt": {
+                "$ref": "#/$defs/prompt"
+              },
+              "required": {
+                "$ref": "#/$defs/required"
+              },
               "type": {
                 "type": "string",
                 "enum": [
@@ -252,6 +276,12 @@
           {
             "type": "object",
             "properties": {
+              "prompt": {
+                "$ref": "#/$defs/prompt"
+              },
+              "required": {
+                "$ref": "#/$defs/required"
+              },
               "type": {
                 "type": "string",
                 "enum": [
@@ -283,6 +313,12 @@
           {
             "type": "object",
             "properties": {
+              "prompt": {
+                "$ref": "#/$defs/prompt"
+              },
+              "required": {
+                "$ref": "#/$defs/required"
+              },
               "type": {
                 "type": "string",
                 "enum": [
@@ -339,5 +375,16 @@
   "required": [
     "name",
     "meta"
-  ]
+  ],
+  "$defs": {
+    "prompt": {
+      "type": "string",
+      "description": "The prompt message to display to the user."
+    },
+    "required": {
+      "type": "boolean",
+      "description": "Whether this field is required.",
+      "default": false
+    }
+  }
 }
