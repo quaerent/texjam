@@ -15,7 +15,11 @@ def alias(*names: str):
     def decorator(func):
         func.__doc__ += f' (also {", ".join(repr(name) for name in names)})'
         for name in names:
-            app.command(name=name, hidden=True)(func)
+            app.command(
+                name=name,
+                hidden=True,
+                help=f'Alias for `{func.__name__}`.',
+            )(func)
         return func
 
     return decorator
@@ -23,19 +27,19 @@ def alias(*names: str):
 
 @app.callback()
 def callback():
-    """TexJam CLI - A tool for managing LaTeX project templates."""
+    """TeXJam CLI - A tool for managing LaTeX project templates."""
     pass
 
 
 @app.command()
 @alias('ls')
 def list() -> None:
-    """List all installed TexJam packages."""
+    """List all installed TeXJam packages."""
     packages = pkg.list_installed_packages()
     if not packages:
         print('No packages installed.')
         return
-    print('Installed TexJam packages:')
+    print('Installed TeXJam packages:')
     for package in packages:
         print(f'- {package}')
 
@@ -47,7 +51,7 @@ def install(
     source: Annotated[
         str,
         typer.Argument(
-            help='Source of the TexJam package (e.g., Git URL, local path).',
+            help='Source of the TeXJam package (e.g., Git URL, local path).',
         ),
     ],
     force: Annotated[
@@ -59,7 +63,7 @@ def install(
         ),
     ] = False,
 ) -> None:
-    """Install a TexJam package."""
+    """Install a TeXJam package."""
     parsed_source = parse_source(source)
     package_name = pkg.install_package(parsed_source, force)
     print(f'Installed package: {package_name}')
@@ -72,11 +76,11 @@ def uninstall(
     package: Annotated[
         str,
         typer.Argument(
-            help='Name of the TexJam package to uninstall.',
+            help='Name of the TeXJam package to uninstall.',
         ),
     ],
 ) -> None:
-    """Uninstall a TexJam package."""
+    """Uninstall a TeXJam package."""
     pkg.uninstall_package(package)
     print(f'Uninstalled package: {package}')
 
@@ -88,7 +92,7 @@ def update(
     package: Annotated[
         str,
         typer.Argument(
-            help='Name of the TexJam package to update.',
+            help='Name of the TeXJam package to update.',
         ),
     ],
     revision: Annotated[
@@ -100,7 +104,7 @@ def update(
         ),
     ] = None,
 ) -> None:
-    """Update an installed TexJam package."""
+    """Update an installed TeXJam package."""
     pkg.update_package(package)
     if revision:
         pkg.checkout_package(package, revision)
@@ -114,7 +118,7 @@ def create(
     package: Annotated[
         str,
         typer.Argument(
-            help='Name of the TexJam package to use as a template.',
+            help='Name of the TeXJam package to use as a template.',
         ),
     ],
     output: Annotated[
@@ -126,7 +130,7 @@ def create(
             file_okay=False,
             dir_okay=True,
             writable=True,
-            help='Target directory for the new TexJam project.',
+            help='Target directory for the new TeXJam project.',
         ),
     ] = None,
     data: Annotated[
@@ -156,7 +160,7 @@ def create(
         ),
     ] = None,
 ) -> None:
-    """Create a new TexJam project using the template."""
+    """Create a new TeXJam project using the template."""
     if package.startswith(('.', '/')):
         template_dir = Path(package).resolve()
     else:

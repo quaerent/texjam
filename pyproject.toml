@@ -1,7 +1,7 @@
 [project]
 name = "texjam"
 version = "0.4.5"
-description = "A scaffold for LaTeX templates."
+description = "A tool for managing LaTeX project templates."
 authors = [{ name = "Quaerent", email = "topfyf@qq.com" }]
 license = { text = "MIT" }
 readme = "README.md"

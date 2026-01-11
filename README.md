@@ -1,3 +1,3 @@
-# Tex Jam
+# `TeXJam`
 
-A scaffold for LaTeX templates.
+A tool for managing LaTeX project templates.

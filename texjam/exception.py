@@ -6,13 +6,13 @@ from .render.path import TempPath
 
 
 class TexJamException(Exception):
-    """Base exception for TexJam."""
+    """Base exception for TeXJam."""
 
     pass
 
 
 class TexJamPluginException(TexJamException):
-    """Exception for TexJam plugin execution errors."""
+    """Exception for TeXJam plugin execution errors."""
 
     def __init__(
         self,
@@ -39,7 +39,7 @@ class TexJamPluginException(TexJamException):
 
 
 class TexJamScaffoldException(TexJamException):
-    """Exception for TexJam scaffolds."""
+    """Exception for TeXJam scaffolds."""
 
     pass
 
@@ -68,13 +68,13 @@ class TexJamScaffoldPathAlreadyExistsException(TexJamScaffoldException):
 
 
 class TexJamTemplateException(TexJamException):
-    """Exception for TexJam templates."""
+    """Exception for TeXJam templates."""
 
     pass
 
 
 class TexJamTemplateStringException(TexJamTemplateException):
-    """Exception for TexJam template strings."""
+    """Exception for TeXJam template strings."""
 
     def __init__(self, *, template_string: str, cause: TemplateError):
         self.template_string = template_string
@@ -82,7 +82,7 @@ class TexJamTemplateStringException(TexJamTemplateException):
 
 
 class TexJamTemplatePathException(TexJamTemplateException):
-    """Exception for TexJam template paths."""
+    """Exception for TeXJam template paths."""
 
     def __init__(self, *, template_path: TempPath, cause: TemplateError):
         self.template_path = template_path
@@ -90,7 +90,7 @@ class TexJamTemplatePathException(TexJamTemplateException):
 
 
 class TexJamPackageException(TexJamException):
-    """Exception for TexJam packages."""
+    """Exception for TeXJam packages."""
 
     pass
 

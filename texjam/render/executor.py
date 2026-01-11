@@ -19,7 +19,7 @@ class TexJam:
     """A class to scaffold LaTeX documents using Jinja2 templates."""
 
     def __init__(self, template_dir: Path, output_dir: Path) -> None:
-        """Initialize TexJam.
+        """Initialize TeXJam.
 
         Args:
             template_dir (str): The directory where LaTeX templates are stored.
@@ -106,7 +106,7 @@ class TexJam:
         """Prompt the user for metadata values."""
         # print welcome message
         print(
-            f'[bold green]TexJam[/bold green] - Scaffolding project: '
+            f'[bold green]TeXJam[/bold green] - Scaffolding project: '
             f'[bold]{self.config.name}[/bold]'
         )
 
@@ -219,7 +219,7 @@ class TexJam:
 
 
 class TexJamPlugin:
-    """Abstract base class for TexJam plugins."""
+    """Abstract base class for TeXJam plugins."""
 
     plugins = []
 
@@ -233,17 +233,17 @@ class TexJamPlugin:
 
     @property
     def env(self) -> Environment:
-        """The Jinja2 environment from TexJam."""
+        """The Jinja2 environment from TeXJam."""
         return self.texjam.env
 
     @property
     def config(self) -> TexJamConfig:
-        """The TexJam configuration."""
+        """The TeXJam configuration."""
         return self.texjam.config
 
     @property
     def metadata(self) -> dict[str, Any]:
-        """The TexJam metadata."""
+        """The TeXJam metadata."""
         return self.texjam.metadata
 
     def render(self, content: str) -> str:
