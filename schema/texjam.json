@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/quaerent/texjam/raw/refs/tags/v0.5.0/schema/texjam.json",
+  "$id": "https://github.com/quaerent/texjam/raw/refs/tags/v0.5.1/schema/texjam.json",
   "title": "TeXJam Configuration Schema",
   "type": "object",
   "properties": {
