@@ -102,7 +102,7 @@ class TexJam:
 
         self.env = Environment(**self.config.jinja.model_dump())
 
-    def prompt(self) -> None:
+    def prompt(self, data: dict | None = None) -> None:
         """Prompt the user for metadata values."""
         # print welcome message
         print(
@@ -125,7 +125,10 @@ class TexJam:
                 continue
 
             # prompt user
-            value = prompter.prompt_meta_field(name, field)
+            if data is not None and name in data:
+                value = data[name]
+            else:
+                value = prompter.prompt_meta_field(name, field)
 
             # post-prompt hook
             intercept_store = False

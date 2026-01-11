@@ -1,7 +1,10 @@
+import json
+import sys
 from pathlib import Path
 from typing import Annotated
 
 import typer
+import yaml
 from rich import print
 
 from ..render import TexJam
@@ -169,9 +172,25 @@ def create(
     if output is None:
         output = Path.cwd()
 
+    # load metadata if provided
+    if data:
+        metadata = json.loads(data)
+    elif json_file:
+        with json_file.open('r') as f:
+            metadata = json.load(f)
+    elif yaml_file:
+        with yaml_file.open('r') as f:
+            metadata = yaml.safe_load(f)
+    else:
+        metadata = None
+
+    if metadata is not None and not isinstance(metadata, dict):
+        print('[red]Error:[/red] Metadata must be an object.', file=sys.stderr)
+        raise typer.Exit(code=1)
+
     texjam = TexJam(template_dir=template_dir, output_dir=output)
     texjam.load_plugins()
-    texjam.prompt()
+    texjam.prompt(data=metadata)
     texjam.render()
 
 
