@@ -416,6 +416,10 @@ class Prompter:
             default=default_value,
             validate=lambda ans: field._question_validate(ans) or True,
         )
+        if prompt_dict['default'] is None:
+            # questionary does not accept None as default value
+            # so we remove it from the dict
+            del prompt_dict['default']
         prompt_dict['name'] = 'response'
         answer = questionary.prompt([prompt_dict])
         if answer is None or len(answer) == 0:
