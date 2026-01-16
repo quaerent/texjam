@@ -1,11 +1,12 @@
 import json
 import sys
+from importlib.metadata import version
 from pathlib import Path
 from typing import Annotated
 
 import typer
 import yaml
-from rich import print
+from rich import print as rprint
 
 from ..render import TexJam
 from . import package as pkg
@@ -28,8 +29,26 @@ def alias(*names: str):
     return decorator
 
 
+def version_callback(value: bool) -> None:
+    if value:
+        print(f'TeXJam version: v{version("texjam")}')
+        print('Copyright (c) 2025-present Quaerent.')
+        raise typer.Exit()
+
+
 @app.callback()
-def callback():
+def callback(
+    version: Annotated[
+        bool | None,
+        typer.Option(
+            '--version',
+            '-v',
+            is_eager=True,
+            help='Show the TeXJam version and exit.',
+            callback=version_callback,
+        ),
+    ],
+):
     """TeXJam CLI - A tool for managing LaTeX project templates."""
     pass
 
@@ -185,7 +204,7 @@ def create(
         metadata = None
 
     if metadata is not None and not isinstance(metadata, dict):
-        print('[red]Error:[/red] Metadata must be an object.', file=sys.stderr)
+        rprint('[red]Error:[/red] Metadata must be an object.', file=sys.stderr)
         raise typer.Exit(code=1)
 
     texjam = TexJam(template_dir=template_dir, output_dir=output)
