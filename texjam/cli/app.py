@@ -39,7 +39,7 @@ def version_callback(value: bool) -> None:
 @app.callback()
 def callback(
     version: Annotated[
-        bool | None,
+        bool,
         typer.Option(
             '--version',
             '-v',
@@ -47,7 +47,7 @@ def callback(
             help='Show the TeXJam version and exit.',
             callback=version_callback,
         ),
-    ],
+    ] = False,
 ):
     """TeXJam CLI - A tool for managing LaTeX project templates."""
     pass
